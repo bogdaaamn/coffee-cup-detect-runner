@@ -10,6 +10,7 @@
   "author": "Bogdan Covrig",
   "license": "ISC",
   "dependencies": {
+    "@supabase/supabase-js": "^2.43.4",
     "edge-impulse-linux": "^1.8.7",
     "express": "^4.19.2",
     "sharp": "^0.33.4",

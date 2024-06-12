@@ -20,7 +20,7 @@ You can head over to [database.new](https://database.new/) to create a new Supab
 create table detections (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   created_at timestamp with time zone not null default current_timestamp,
-  action text
+  message text
 );
 ```
 
@@ -51,8 +51,8 @@ $ npm install
 4. Create an `.env` file (see `.env.example`) and copy the Supabase credentials, [more details here](https://supabase.com/docs/guides/getting-started/quickstarts/nextjs)
 
 ```
-NEXT_PUBLIC_SUPABASE_URL=<SUPABASE_URL>
-NEXT_PUBLIC_SUPABASE_ANON_KEY=<SUPABASE_ANON_KEY>
+SUPABASE_URL=<SUPABASE_URL>
+SUPABASE_ANON_KEY=<SUPABASE_ANON_KEY>
 ```
 
 5. Start the application
