@@ -5,7 +5,7 @@
   "main": "dist/run.js",
   "scripts": {
     "build": "npx tsc -p .",
-    "start": "node dist/run.js"
+    "start": "node --env-file=.env dist/run.js"
   },
   "author": "Bogdan Covrig",
   "license": "ISC",

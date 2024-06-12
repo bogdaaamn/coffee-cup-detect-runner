@@ -4,6 +4,8 @@ import {
   ICamera,
   ImageClassifier,
 } from "edge-impulse-linux";
+
+import { createClient } from "@supabase/supabase-js";
 import { Server } from "socket.io";
 import { fileURLToPath } from "url";
 
@@ -16,6 +18,9 @@ import sharp from "sharp";
 // See issue https://nodejs.org/docs/latest-v15.x/api/esm.html#esm_no_filename_or_dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Get env supabase configuration
+const { SUPABASE_URL, SUPABASE_ANON_KEY } = process.env;
 
 type ModelType = {
   project: { name: string; owner: string };
@@ -40,6 +45,17 @@ if (!process.argv[2]) {
   console.log("Missing one argument (model file)");
   process.exit(1); // Exit if the model file argument is missing
 }
+
+// Check if the Supabase configuration is provided
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  console.log("Missing Supabase configuration");
+  process.exit(1); // Exit if the Supabase configuration is missing
+}
+
+console.log("Init supabase...");
+
+// Initialize the Supabase client
+const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 console.log("Init runner...");
 
@@ -143,6 +159,14 @@ function startSocket(
     });
   });
 
+  // Initialize the flags for coffee-cup detection
+  // The firstClassificationTime is used to record the time when the coffee-cup is detected
+  // The isLastFrameClassified is used to check if the coffee-cup is detected in the previous frame
+  // The isCupRecorded is used to check if the coffee-cup is already recorded in the database
+  let firstClassificationTime = 0;
+  let isLastFrameClassified = false;
+  let isCupRecorded = false;
+
   // Handle classification result event
   imageClassifier.on("result", async (result, timeMs, imgAsJpg) => {
     const classificationResult = result.result;
@@ -159,6 +183,48 @@ function startSocket(
             }
             return acc;
           }, []);
+
+      // Check if the bounding box for coffee-cup is detected
+      if (boundingBoxes.find((b) => b.label === "coffee-cup")) {
+        // Check if the coffee-cup is detected for the first time
+        if (!isLastFrameClassified) {
+          // Record the first classification time
+          firstClassificationTime = Date.now();
+          isLastFrameClassified = true;
+        } else {
+          // Check if the coffee-cup is detected for more than 3 seconds
+          if (Date.now() - firstClassificationTime > 3000) {
+            // Check if the coffee-cup is not already recorded
+            if (!isCupRecorded) {
+              console.log("Coffee cup detected for more than 3 seconds!");
+              console.log("Recording to the database...");
+
+              // Record the coffee-cup detection to the database
+              // for the first time
+              const { error } = await supabaseClient
+                .from("detections")
+                .insert({ message: "Coffee cup detected" });
+
+              // Check if there is an error recording to the database
+              if (error) {
+                // Don't do anything if error.. try again
+                console.error("Error recording to the database", error);
+              } else {
+                // Set the coffee-cup recorded flag to true so
+                // that it is not recorded again
+                isCupRecorded = true;
+                console.log("Recorded to the database");
+              }
+            }
+          }
+        }
+      } else {
+        // Reset the flags if the coffee-cup is not detected
+        // The next time it is detected, it will be recorded again
+        firstClassificationTime = 0;
+        isLastFrameClassified = false;
+        isCupRecorded = false;
+      }
 
       classificationResult.bounding_boxes = boundingBoxes;
     }
